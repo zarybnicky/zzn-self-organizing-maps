@@ -1,47 +1,26 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import sys
-import numpy.matlib, time, random, sys
-from somlib import *
+import time
+from som.graphics import get_window, draw_2d_map
+from som.map import SOM
 
-def generate_input():
-    ret = []
-    for i in range(300):
-        ret.append([round(random.random() * 200+600), round(random.random() * 200 + 200)])
-        ret.append([round(random.random() * 200+200), round(random.random() * 200+600)])
-        ret.append([round(random.random() * 200), round(random.random() * 200)])
-
-    return np.array(ret, dtype=float)
-
-def map_init_reg(x, y):
-    arr = []
-    for j in range(x):
-        for i in range(y):
-            arr.append([j*100, i*100])
-    return np.array(arr, dtype=float)
 
 def main():
-    mx, my = 10, 10
-    m = map_init_reg(mx, my)
+    som = SOM(10, 10, 2)
+    vec = np.random.random((900, 2)) * 0.2
+    vec[1::3, 0] += 0.2
+    vec[1::3, 1] += 0.6
+    vec[2::3, 0] += 0.6
+    vec[2::3, 1] += 0.2
 
-    vec = generate_input()
+    with get_window(950, 950) as win:
+        for i, v in enumerate(vec):
+            som.learn_one(v)
+            if i % 50 == 0:
+                draw_2d_map(win, som.weights, vec[:i])
+                time.sleep(.5)
 
-    init_draw(950, 950)
-    draw_2d_map(m, mx, [])
-    i = 0
-    for v in vec:
-        bmu = get_bmu(m, v)
-        m[bmu] += 0.1 * (v - m[bmu])
-        for neighbor in get_idx_neighbors(mx, my, bmu):
-            m[neighbor] += 0.1 * 0.75 * (v - m[neighbor])
-
-        i += 1
-        if i % 100 == 0:
-            draw_2d_map(m, mx, vec[:i])
-            time.sleep(1)
-
-    finish_draw()
 
 if __name__ == '__main__':
     main()

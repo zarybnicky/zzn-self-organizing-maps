@@ -1,80 +1,60 @@
 #!/usr/bin/env python3
 
+import functools
 import numpy as np
-import sys, getopt, csv
-import numpy.matlib, time, random
-from somlib import *
+import sys
+
+from som.cli import parse_cli
+from som.map import SOM
+
+print = functools.partial(print, flush=True)
+
 
 def main():
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], 's:i:o:', [])
-    except getopt.GetoptError as err:
-        print(err, file=sys.stderr)
-        sys.exit(2)
+    cfg = parse_cli(sys.argv[1:])
 
-    mx, my, filepath_in = None, None, None
-    for o, a in opts:
-        if o == '-s':
-            mx, my = get_sizes_from_cli(a)
-        elif o == '-i':
-            filepath_in = a
+    print('Loading CSV...', end='')
+    csv = np.loadtxt(cfg.infile, delimiter=',', skiprows=1 if cfg.skip_first else 0)
+    shuffled = np.random.permutation(csv.shape[0])
+    training_size = round(len(shuffled) * .8)
+    training_set = csv[shuffled[:training_size], :]
+    validate_set = csv[shuffled[training_size:], :]
+    print(' done.')
 
-    if mx == None or my == None or filepath_in == None:
-        print ('ERROR', file=sys.stderr)
-        sys.exit(2)
+    print('Initializing map...', end='')
+    som = SOM(cfg.mx, cfg.my, len(csv[0]) - 1)
+    digits = np.zeros((cfg.mx, cfg.my, 10))
+    print(' done.')
 
-    print('loading CSV...  ', end='', flush=True)
-    data, model = load_csv(filepath_in)
-    print('DONE', flush=True)
+    print('Training', end='')
+    for subset in np.array_split(training_set, len(training_set) // 100):
+        for row in subset:
+            digit = int(row[0])
+            i, j = som.learn_one(row[1:])
+            digits[i, j, digit] += 4
+            for ii, jj, _ in som.get_neighborhood(i, j, 1):
+                digits[ii, jj, digit] += 3
+        print('.', end='')
+    print(' done.')
 
-    input_rows_cnt = len(data)
-    input_rows_len = len(data[0])
-
-    print("INITIALIZING MAP...  ", end='', flush=True)
-
-    m = matrix_init(mx, my, input_rows_len)
-    neuron_digit_count = np.array([[0,0,0,0,0,0,0,0,0,0]] * (mx*my))
-
-    print('DONE', flush=True)
-
-    percent_done = 0
-    classify_cnt = 1000
-    percent_cnt = 0
-    one_percent = (input_rows_cnt - classify_cnt)/ 100
-
-    for i in range(input_rows_cnt - classify_cnt):
-        vec = data[i]
-        bmu_idx = get_bmu(m, vec)
-        cur_dig = model[i]
-
-        neuron_digit_count[bmu_idx][cur_dig] += 4
-
-        m[bmu_idx] += 0.1 * (vec - m[bmu_idx])
-        for neighbor_idx in get_idx_neighbors(mx, my, bmu_idx):
-            m[neighbor_idx] += 0.75 * 0.1 * (vec - m[neighbor_idx])
-            neuron_digit_count[neighbor_idx][cur_dig] += 3
-
-        percent_cnt += 1
-        if percent_cnt >= one_percent and input_rows_cnt >= 100:
-            percent_done += 1
-            print('TRAINING ', percent_done, '%')
-            percent_cnt = 0
-
-    print('CLASSIFY...')
+    print('Classifying...', end='')
     succ = 0
-    for i in range(input_rows_cnt - classify_cnt, input_rows_cnt):
-        bmu = get_bmu(m, data[i])
-        pdig = np.argmax(neuron_digit_count[bmu])
-        if pdig == model[i]:
+    for row in validate_set:
+        if np.argmax(digits[som.find_bmu(row[1:])]) == row[0]:
             succ += 1
+    print(' done.')
 
-    print ('SUCCESS:', succ, 'out of', classify_cnt, '   ', round(succ/classify_cnt * 100, 2), '%')
+    print('Success rate: %s%% (%s out of %s)' % (
+        round(succ / len(validate_set) * 100, 2),
+        succ, len(validate_set)
+    ))
 
-    print ('\nMAP:')
-    for i in range(mx):
-        for j in range(my):
-            print (np.argmax(neuron_digit_count[i*mx+j]), end='  ')
+    print('Map:')
+    for i in range(cfg.mx):
+        for j in range(cfg.my):
+            print(np.argmax(digits[i, j]), end='  ')
         print('')
+
 
 if __name__ == '__main__':
     main()
