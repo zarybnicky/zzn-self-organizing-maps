@@ -27,13 +27,15 @@ def main():
     print(' done.')
 
     print('Training', end='')
+    rate = .1
+    rate_step = rate / 800
     for subset in np.array_split(training_set, len(training_set) // 100):
         for row in subset:
             digit = int(row[0])
-            i, j = som.learn_one(row[1:])
-            digits[i, j, digit] += 4
-            for ii, jj, _ in som.get_neighborhood(i, j, 1):
-                digits[ii, jj, digit] += 3
+            i, j = som.learn_one(row[1:], rate=rate, neighborhood=3)
+            for ii, jj, theta in som.get_neighborhood(i, j, 1):
+                digits[ii, jj, digit] += 12 / theta
+        rate -= rate_step
         print('.', end='')
     print(' done.')
 
