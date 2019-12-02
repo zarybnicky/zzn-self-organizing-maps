@@ -25,21 +25,26 @@ class SOM(object):
             self.learn_one(v, rate, neighborhood)
 
     def learn_one(self, v, rate=.1, neighborhood=2):
-        i, j = self.find_bmu(v)
-        for ii, jj, theta in self.get_neighborhood(i, j, neighborhood):
-            self.weights[ii, jj] += rate / theta * (v - self.weights[ii, jj])
+        d = neighborhood
+        diff = v - self.weights
+        i, j = self.find_bmu(diff)
+
+        range_x = np.arange(max(0, i - d), min(self.m, i + d + 1))
+        range_y = np.arange(max(0, j - d), min(self.n, j + d + 1))
+        theta = 2 + \
+            np.abs(range_x[np.newaxis, :] - i) + \
+            np.abs(range_y[:, np.newaxis] - j)
+        xs, ys = np.meshgrid(range_x, range_y, copy=False)
+        self.weights[xs, ys] += \
+            rate * np.divide(diff[xs, ys], theta[:, :, np.newaxis])
         return i, j
 
-    def find_bmu(self, v):
-        bmu = np.argmin(np.sum((self.weights - v) ** 2, axis=2))
+    def find_bmu(self, diff):
+        bmu = np.argmin(np.sum(diff ** 2, axis=2))
         return bmu // self.m, bmu % self.m
 
     def get_neighborhood(self, i, j, d):
-        return ((x, y, theta_fn(i, j, x, y))
+        return ((x, y, 2 + abs(i - x) + abs(j - y))
                 for x in range(i - d, i + d + 1)
                 for y in range(j - d, j + d + 1)
                 if 0 <= x < self.m and 0 <= y < self.n)
-
-
-def theta_fn(ai, aj, bi, bj):
-    return 2 + abs(ai - bi) + abs(aj - bj)

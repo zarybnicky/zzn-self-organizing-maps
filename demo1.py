@@ -2,6 +2,7 @@
 
 import numpy as np
 import time
+
 from som.graphics import get_window, draw_2d_map
 from som.map import SOM
 

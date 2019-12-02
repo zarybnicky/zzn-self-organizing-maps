@@ -1,43 +1,12 @@
-import getopt
-import sys
+import argparse
 
 
-class Config:
-    mx = None
-    my = None
-    infile = None
-    skip_first = None
-    outfile = None
-
-
-def parse_cli(args):
-    try:
-        opts, args = getopt.getopt(args, 's:i:o:S', [])
-    except getopt.GetoptError as err:
-        print(err, file=sys.stderr)
-        sys.exit(2)
-
-    cfg = Config()
-    for o, a in opts:
-        if o == '-s':
-            try:
-                mx, my = map(int, a.split('x'))
-                if mx < 1 or my < 1:
-                    raise ValueError
-                cfg.mx = mx
-                cfg.my = my
-            except ValueError:
-                print('error: wrong format of matrix size, should be: "MxN"', file=sys.stderr)
-                sys.exit(2)
-        elif o == '-i':
-            cfg.infile = a
-        elif o == '-o':
-            cfg.outfile = a
-        elif o == '-S':
-            cfg.skip_first = True
-
-    if cfg.mx is None or cfg.my is None or cfg.infile is None:
-        print('usage: som.py -s SIZE -i INPUT_FILE [-o OUTPUT_FILE] [-S]', file=sys.stderr)
-        sys.exit(2)
-
-    return cfg
+parser = argparse.ArgumentParser(prog='som.py')
+subparsers = parser.add_subparsers(help='Actions')
+parser_learn = subparsers.add_parser('train', help='Train a SOM on specified CSV data')
+parser_learn.add_argument('size', nargs=2, metavar='N', type=int)
+parser_learn.add_argument('infile', metavar='FILE')
+parser_learn.add_argument('-m', '--model', metavar='MODEL')
+parser_learn.add_argument('-L', '--label-pos', metavar='POSITION', type=int)
+parser_learn.add_argument('-l', '--label-model', metavar='MODEL')
+parser_learn.add_argument('--skip-first-row', action='store_true')
