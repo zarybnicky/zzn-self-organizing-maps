@@ -24,7 +24,6 @@ def main(epochs, size, infile):
     shuffled = np.random.permutation(csv.shape[0])
     training_size = round(len(shuffled) * .8)
     training_set = csv[shuffled[:training_size], :]
-    print(training_set)
     validate_set = csv[shuffled[training_size:], :]
     print(' done.')
 

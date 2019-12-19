@@ -1,0 +1,124 @@
+#+LATEX_CLASS: article
+#+LATEX_CLASS_OPTIONS: [11pt]
+#+LATEX_HEADER: \usepackage{minted}
+#+LATEX_HEADER: \setminted{fontsize=\footnotesize}
+#+LATEX_HEADER: \usepackage[font={small,sf},labelfont=bf,format=hang,format=plain,margin=0pt,width=0.8\textwidth,]{caption}
+#+OPTIONS: tags:nil creator:nil tasks:nil toc:nil
+
+#+AUTHOR: Jakub Zárybnický (xzaryb00), Jan Hammer (xhamme00)
+#+TITLE: Implementace metod získávání znalostí
+#+SUBTITLE: Řešení
+#+DATE: 19. 12. 2019
+#+BIND: org-export-use-babel nil
+
+* Zadání
+Kohonenova mapa (self-organizing map, SOM) je typ neuronové sítě trénovaný
+pomocí učení bez učitele (unsupervised learning). Používá se pro snížení
+dimenzionality dat, často pro projekci do 2D/3D prostoru za účelem
+vizualizace. Také se používá pro klasifikační úkoly, kdy výsledkem učení jsou
+shluky. Podobnými metodami jsou k-means clustering nebo support vector machines,
+které mohou dostávat lepší výsledky v klasifikačních úkolech, ale zato nemají
+tak čitelné vizualizační výstupy.
+
+Cílem našeho projektu bylo implementovat Kohonenovu mapu i vizualizace nad ní a
+demonstrovat funkčnost nad několika sadami dat.
+
+* Přístup
+Mapu jsme implementovali v jazyce Python pomocí knihovny pro práci s maticemi
+Numpy. Pro vizualizaci jsme použili další knihovnu - ne maplotlib, jak bylo
+původně v plánu, ale hlavně kvůli animacím jsme použili graphics-py. Poslední
+externí knihovna, použitá čistě z pohodlnosti, je Click, knihovna pro tvorbu
+rozhraní příkazové řádky.
+
+Vytvořili jsme knihovnu a aplikaci skládající se ze dvou modulů ~som.map~ a
+~som.graphics~ a ze spustitelné aplikace ~som.py~. Aplikace obsahuje tři oddělené
+příkazy - ~generate~ pro generování náhodných dat (volitelně ve shlucích), ~train~
+pro natrénovaní mapy s řadou nastavitelných parametrů a ~visalize~ pro zobrazení
+již natrénovaného modelu.
+
+Dále jsme vytvořili dva skripty ~mnist.py~ a ~iris.py~, které demonstrují použití
+API vytvořené knihovny.
+
+** Algoritmus
+Jeden krok učení Kohonenovy mapy má dva podkroky:
+- najít uzel, jehož váhové parametry jsou nejbližší aktuálně trénovanému vzorku,
+  tzv. BMU (Best Matching Unit)
+- a posunout takto nalezený uzel a jeho sousedy blíže k trénovanému vzorku s
+  vahou odpovídající obrácené vzdálenosti souseda od BMU (používáme tzv. /Manhattan distance/).
+
+* Výsledky
+
+** Random
+#+BEGIN_SRC shell
+  ./som.py generate 20 > random.csv
+  ./som.py train --animate --animate-interval 5 \
+    --size 10x10 --rate 0.2 --epochs 15 -m random.npz \
+    random.csv
+  ./som.py visualize random.npz
+#+END_SRC
+
+První příkaz vygeneruje 20 náhodných vzorků o délce 2, druhý nad nimi natrénuje
+síť o velikosti 10x10 a zároveň při tréninku zobrazuje animaci, jak se síť mění
+při učení. Natrénovanou síť uloží do souboru, odkud ji pak načte poslední
+příkaz, který vizualizuje už netrénovanou síť.
+
+[[file:~/Screenshot from 2019-12-19 11-27-05.png]]
+
+** Clusters
+#+BEGIN_SRC shell
+  ./som.py generate --clusters 3 300 > clusters.csv
+  ./som.py train --animate --animate-interval 1 \
+    --size 10x10 --rate 0.2 --epochs 5 -m clusters.npz \
+    clusters.csv
+#+END_SRC
+
+Sada příkazů generuje sadu 300 vzorků o délce 2 seskupenou do tří shluků, nad
+nimi natrénuje síť a během tréninku vizualizuje, jak se síť postupně učí.
+
+[[file:~/Screenshot from 2019-12-19 11-28-01.png]]
+
+** MNIST
+#+BEGIN_SRC shell
+  ./mnist.py -S 20x20 --skip-rows 1 train.csv
+#+END_SRC
+
+Program rozdělí vstupní data na testovací a trénovací množinu a pak paralelně
+trénuje Kohonenovu mapu a klasifikátor na ní založený - každý uzel má ještě
+váhový vektor s one-hot zakódovaným výsledkem klasifikace, který se trénuje
+stejně jako mapa samotná, s propagací do sousedních uzlů.
+
+Na závěr se program pokusí se klasifikovat data testovací množiny. Nejvyšší
+procento správně klasifikovaných vzorků, co jsem viděl, bylo 76.52% - zamícháním
+tréninkových dat před začátkem učení jsou ale výsledky nedeterministické,
+pravidelně dosahujeme výsledků kolem 68% a další úpravou parametrů nebo třeba
+zvětšením by bylo možné dosáhnout ještě lepších výsledků.
+
+[[file:~/Screenshot from 2019-12-19 11-28-55.png]]
+
+** Iris
+#+BEGIN_SRC shell
+  ./iris.py -epochs 50 --size 10x10 iris-preprocessed.csv
+#+END_SRC
+
+Program pracuje stejně jako ~./mnist.py~, jen s lehce upraveným zpracováním
+označení vzorků (labels). Při učení zobrazuje rozložení mapy v 2D prostoru -
+první okno rozložení na základě lístků kališních (první dva rozměry dat), druhé
+na základě listů korunních (druhé dva rozměry).
+
+Zde s uvedenými parametry učení dosahujeme úspěšnost ověření nad testovacími
+daty přes 90% - nejlepší výsledek, co jsem viděl byl 100%.
+
+[[file:~/Screenshot from 2019-12-19 11-24-13.png]]
+
+[[file:~/Screenshot from 2019-12-19 11-25-49.png]]
+
+* Závěr
+Adaptovat tyto techniky pro jiné sady dat by mělo být triviální. Pro vizualizaci
+vícerozměrných dat (např. MNIST) ale chybí implementace tzv. U-matrix
+vizualizace, která zobrazuje ne absolutní umístění uzlu podle jednotlivých
+souřadnic ale průměrnou vzdálenost uzlu od jeho sousedů, což je technika
+použitelná pro libovolně vysoce dimenzionální data.
+
+Naše implementace Kohonenovy mapy ale pracuje správně pro vizualizaci 2D dat a
+pro klasifikaci libovolně rozměrných dat.
+
