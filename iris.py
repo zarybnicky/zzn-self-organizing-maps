@@ -55,7 +55,7 @@ def main(epochs, size, infile):
     print('Classifying...', end='')
     succ = 0
     for row in validate_set:
-        if np.argmax(labels[som.find_bmu(row[1:] - som.weights)]) == row[0]:
+        if np.argmax(labels[som.find_bmu(row[:-1] - som.weights)]) == row[-1]:
             succ += 1
     print(' done.')
 

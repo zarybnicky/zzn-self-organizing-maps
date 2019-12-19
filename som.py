@@ -54,13 +54,6 @@ def train(animate, animate_interval, animate_pause, model, skip_rows,
 
 
 @cli.command()
-@click.option('--count', default=1, help='number of greetings')
-@click.argument('name')
-def classify(count, name):
-    pass
-
-
-@cli.command()
 @click.argument('model')
 def visualize(model):
     from som.graphics import get_window, get_windows, draw_2d_map
