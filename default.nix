@@ -13,11 +13,12 @@ let graphics-py = with pkgs.python3Packages; buildPythonPackage rec {
 in pkgs.python3Packages.buildPythonApplication {
   name = "zzn-self-organizing-maps";
   propagatedBuildInputs = with pkgs.python3Packages; [
+    click
+    flake8
+    graphics-py
+    matplotlib
     numpy
     pylint
-    flake8
-    matplotlib
-    graphics-py
     tkinter
   ];
 }
